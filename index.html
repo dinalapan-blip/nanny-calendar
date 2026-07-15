@@ -133,6 +133,10 @@
     border-radius:10px; padding:6px 12px;
   }
   .reset:hover{color:var(--ink); border-color:var(--accent)}
+  .reset:disabled{opacity:.45; cursor:default}
+  .reset:disabled:hover{color:var(--muted); border-color:var(--line)}
+  #pubStatus{color:var(--muted); font-size:.9rem}
+  #pubStatus.pub-dirty{color:var(--irina); font-weight:600}
 
   /* ---- календарь ---- */
   .months{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px}
@@ -193,7 +197,12 @@
     <input type="date" id="needStart">
     <span class="dash">—</span>
     <input type="date" id="needEnd">
-    <button class="reset" id="resetBtn">↩︎ Вернуть исходный график</button>
+    <button class="reset" id="resetBtn">↩︎ Вернуть зафиксированный график</button>
+  </div>
+
+  <div class="needbar" id="pubbar" hidden>
+    <span id="pubStatus"></span>
+    <button class="reset" id="pubBtn" style="margin-left:auto">📤 Зафиксировать для всех</button>
   </div>
 
   <div class="months" id="months"></div>
@@ -205,6 +214,11 @@
 
 <script>
 const KEY = 'nanny-calendar-v1';
+const KEY_BASE = 'nanny-calendar-published';   /* какая общая версия у нас принята */
+const KEY_TOKEN = 'nanny-gh-token';
+const GH_RAW = 'https://raw.githubusercontent.com/dinalapan-blip/nanny-calendar/main/data.json';
+const GH_API = 'https://api.github.com/repos/dinalapan-blip/nanny-calendar/contents/data.json';
+let published = null;   /* общая (зафиксированная) версия, если удалось загрузить */
 
 const DEFAULTS = {
   need: { start:'2026-07-17', end:'2026-08-05' },
@@ -232,25 +246,30 @@ const END_LABEL   = { morning:'до утра', day:'до обеда', evening:'�
 
 let state = load();
 
+function normalize(s){
+  if(!(s && s.nannies && s.nannies.length === 2 && s.need)) return false;
+  /* миграции старых сохранений */
+  s.nannies.forEach(n => n.ranges.forEach(r => {
+    if(!r.startPart) r.startPart = 'morning';
+    if(!r.endPart) r.endPart = 'evening';
+  }));
+  if(!s.extra) s.extra = JSON.parse(JSON.stringify(DEFAULTS.extra));
+  return true;
+}
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
     if(raw){
       const s = JSON.parse(raw);
-      if(s && s.nannies && s.nannies.length === 2 && s.need){
-        /* миграции старых сохранений */
-        s.nannies.forEach(n => n.ranges.forEach(r => {
-          if(!r.startPart) r.startPart = 'morning';
-          if(!r.endPart) r.endPart = 'evening';
-        }));
-        if(!s.extra) s.extra = JSON.parse(JSON.stringify(DEFAULTS.extra));
-        return s;
-      }
+      if(normalize(s)) return s;
     }
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+  updatePubBar();
+}
 
 /* --- даты --- */
 function toDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
@@ -593,13 +612,89 @@ function todSelect(value, kind){
 document.getElementById('needStart').addEventListener('change', e => { state.need.start = e.target.value; save(); render(); });
 document.getElementById('needEnd').addEventListener('change', e => { state.need.end = e.target.value; save(); render(); });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if(confirm('Вернуть исходный график? Ваши изменения будут удалены.')){
-    state = JSON.parse(JSON.stringify(DEFAULTS));
+  if(confirm('Вернуть зафиксированный график? Ваши несохранённые правки будут удалены.')){
+    state = JSON.parse(JSON.stringify(published || DEFAULTS));
     save(); render();
   }
 });
 
+/* --- фиксация изменений для всех (общий файл data.json на GitHub) --- */
+function baseJson(){ return localStorage.getItem(KEY_BASE); }
+function isDirty(){
+  const base = baseJson();
+  return base ? JSON.stringify(state) !== base : true;
+}
+function updatePubBar(){
+  const bar = document.getElementById('pubbar');
+  if(!published){ bar.hidden = true; return; }
+  bar.hidden = false;
+  const st = document.getElementById('pubStatus');
+  const btn = document.getElementById('pubBtn');
+  if(isDirty()){
+    st.textContent = '● Есть изменения, которые пока видите только вы';
+    st.className = 'pub-dirty';
+    btn.disabled = false;
+  } else {
+    st.textContent = '✓ Все изменения зафиксированы — их видят все по ссылке';
+    st.className = '';
+    btn.disabled = true;
+  }
+}
+async function publish(){
+  let token = localStorage.getItem(KEY_TOKEN);
+  if(!token){
+    token = prompt('Чтобы фиксировать график для всех, нужен GitHub-ключ (вводится один раз и сохраняется в этом браузере):');
+    if(!token || !token.trim()) return;
+    token = token.trim();
+    localStorage.setItem(KEY_TOKEN, token);
+  }
+  const btn = document.getElementById('pubBtn');
+  btn.disabled = true; btn.textContent = 'Сохраняю…';
+  try{
+    const head = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' };
+    let sha = null;
+    const cur = await fetch(GH_API, { headers: head });
+    if(cur.status === 401){ localStorage.removeItem(KEY_TOKEN); throw new Error('ключ не подошёл. Нажмите кнопку ещё раз и вставьте ключ заново.'); }
+    if(cur.ok) sha = (await cur.json()).sha;
+    const json = JSON.stringify(state, null, 2);
+    const body = { message: 'Обновление графика нянь', content: btoa(unescape(encodeURIComponent(json))) };
+    if(sha) body.sha = sha;
+    const res = await fetch(GH_API, { method:'PUT', headers: head, body: JSON.stringify(body) });
+    if(res.status === 401 || res.status === 403){ localStorage.removeItem(KEY_TOKEN); throw new Error('ключ не подошёл или нет прав. Нажмите кнопку ещё раз и вставьте ключ заново.'); }
+    if(!res.ok) throw new Error('GitHub ответил ошибкой ' + res.status);
+    published = JSON.parse(JSON.stringify(state));
+    localStorage.setItem(KEY_BASE, JSON.stringify(state));
+    alert('Готово! Теперь этот график увидят все, кто откроет ссылку.');
+  }catch(err){
+    alert('Не получилось сохранить: ' + err.message);
+  }finally{
+    btn.textContent = '📤 Зафиксировать для всех';
+    updatePubBar();
+  }
+}
+document.getElementById('pubBtn').addEventListener('click', publish);
+
+async function fetchPublished(){
+  try{
+    const res = await fetch(GH_RAW + '?t=' + Date.now(), { cache:'no-store' });
+    if(!res.ok) return;
+    const s = await res.json();
+    if(!normalize(s)) return;
+    published = s;
+    const base = baseJson();
+    /* если своих несохранённых правок нет — принимаем общую версию */
+    if(!base || base === JSON.stringify(state) || JSON.stringify(state) === JSON.stringify(published)){
+      state = JSON.parse(JSON.stringify(published));
+      localStorage.setItem(KEY, JSON.stringify(state));
+      localStorage.setItem(KEY_BASE, JSON.stringify(published));
+      render();
+    }
+    updatePubBar();
+  }catch(e){ /* нет сети или страница открыта как артефакт — работаем локально */ }
+}
+
 render();
+fetchPublished();
 </script>
 
 </body>
