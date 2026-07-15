@@ -1,0 +1,596 @@
+<meta charset="utf-8">
+<title>График нянь — календарь</title>
+<style>
+  :root{
+    --bg:#faf7f2;
+    --card:#ffffff;
+    --ink:#2e2a24;
+    --muted:#8a8276;
+    --line:#e7e0d4;
+    --cell:#f3efe7;
+    --irina:#e0704f;        /* коралловый */
+    --maribel:#2f8f83;      /* бирюзовый */
+    --violetta:#8f6db3;     /* сливовый */
+    --gap:#c94141;
+    --gap-soft:#fbe9e9;
+    --accent:#5a5244;
+    --radius:14px;
+    --shadow:0 1px 3px rgba(60,50,30,.08), 0 6px 20px rgba(60,50,30,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#211e19; --card:#2b2721; --ink:#efe9df; --muted:#a1988a; --line:#3d372e;
+      --cell:#332e27;
+      --irina:#e8825f; --maribel:#3fa898; --violetta:#a58bc9;
+      --gap:#e06060; --gap-soft:#452224;
+      --accent:#cfc4b0;
+      --shadow:0 1px 3px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#211e19; --card:#2b2721; --ink:#efe9df; --muted:#a1988a; --line:#3d372e;
+    --cell:#332e27;
+    --irina:#e8825f; --maribel:#3fa898; --violetta:#a58bc9;
+    --gap:#e06060; --gap-soft:#452224;
+    --accent:#cfc4b0;
+    --shadow:0 1px 3px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.25);
+  }
+  :root[data-theme="light"]{
+    --bg:#faf7f2; --card:#ffffff; --ink:#2e2a24; --muted:#8a8276; --line:#e7e0d4;
+    --cell:#f3efe7;
+    --irina:#e0704f; --maribel:#2f8f83; --violetta:#8f6db3;
+    --gap:#c94141; --gap-soft:#fbe9e9;
+    --accent:#5a5244;
+    --shadow:0 1px 3px rgba(60,50,30,.08), 0 6px 20px rgba(60,50,30,.06);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin:0; padding:24px 20px 48px;
+    line-height:1.45;
+  }
+  .wrap{max-width:1060px; margin:0 auto; display:flex; flex-direction:column; gap:20px}
+
+  header h1{font-size:1.5rem; margin:0 0 4px; letter-spacing:-.01em; text-wrap:balance}
+  header p{margin:0; color:var(--muted); font-size:.92rem}
+
+  .dot{width:11px;height:11px;border-radius:4px;flex:none}
+  .dot.i{background:var(--irina)}
+  .dot.m{background:var(--maribel)}
+  .dot.v{background:var(--violetta)}
+  .dot.b{background:linear-gradient(180deg,var(--irina) 50%,var(--maribel) 50%)}
+  .dot.g{background:var(--gap-soft); border:1.5px dashed var(--gap)}
+
+  /* ---- панель управления ---- */
+  .controls{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media (max-width:900px){ .controls{grid-template-columns:1fr} }
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; box-shadow:var(--shadow);
+  }
+  .panel h2{margin:0 0 12px; font-size:1rem; display:flex; align-items:center; gap:8px}
+  .panel h2 .dot{width:14px;height:14px}
+  .panel h2 input{
+    border:none; background:transparent; font:inherit; font-weight:600; color:inherit;
+    width:100%; padding:2px 4px; border-radius:6px;
+  }
+  .panel h2 input:hover{background:var(--bg)}
+  .panel h2 input:focus{outline:2px solid var(--accent); background:var(--bg)}
+
+  .ranges{display:flex; flex-direction:column; gap:10px}
+  .range{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .range input[type=date]{
+    font:inherit; font-size:.88rem; color:inherit;
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:6px 6px; font-variant-numeric:tabular-nums;
+    color-scheme:light dark;
+  }
+  .range select{
+    font:inherit; font-size:.8rem; color:var(--muted);
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:6px 4px; cursor:pointer;
+  }
+  .range select:hover{color:var(--ink); border-color:var(--accent)}
+  .range .dash{color:var(--muted)}
+  .range .days{color:var(--muted); font-size:.82rem; margin-left:2px; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .range .del{
+    margin-left:auto; border:none; background:transparent; color:var(--muted);
+    font-size:1.05rem; cursor:pointer; padding:4px 8px; border-radius:8px; line-height:1;
+  }
+  .range .del:hover{color:var(--gap); background:var(--gap-soft)}
+  .range .del:focus-visible, .add:focus-visible, .reset:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .range .wdname{color:var(--muted); font-size:.82rem}
+
+  .add{
+    margin-top:10px; font:inherit; font-size:.88rem; cursor:pointer;
+    border:1.5px dashed var(--line); background:transparent; color:var(--muted);
+    border-radius:10px; padding:7px 14px; width:100%;
+  }
+  .add:hover{border-color:var(--accent); color:var(--ink)}
+  .warn{color:var(--gap); font-size:.82rem; margin-top:8px}
+
+  /* ---- период присмотра ---- */
+  .needbar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 16px; box-shadow:var(--shadow); font-size:.92rem;
+  }
+  .needbar label{color:var(--muted)}
+  .needbar input[type=date]{
+    font:inherit; font-size:.9rem; color:inherit; background:var(--bg);
+    border:1px solid var(--line); border-radius:8px; padding:6px 8px;
+    font-variant-numeric:tabular-nums; color-scheme:light dark;
+  }
+  .reset{
+    margin-left:auto; font:inherit; font-size:.85rem; cursor:pointer;
+    border:1px solid var(--line); background:transparent; color:var(--muted);
+    border-radius:10px; padding:6px 12px;
+  }
+  .reset:hover{color:var(--ink); border-color:var(--accent)}
+
+  /* ---- календарь ---- */
+  .months{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px}
+  .month{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; box-shadow:var(--shadow);
+  }
+  .month h3{margin:0 0 10px; font-size:1rem; text-transform:capitalize}
+
+  .wds{display:grid; grid-template-columns:repeat(7,1fr); column-gap:3px; margin-bottom:4px}
+  .wd{
+    text-align:center; font-size:.72rem; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em;
+  }
+  .week{
+    display:grid; grid-template-columns:repeat(7,1fr);
+    grid-template-rows:20px 14px 14px 14px;
+    column-gap:3px; row-gap:2px;
+    margin-bottom:4px;
+    padding-bottom:2px;
+  }
+  .cellbg{
+    grid-row:1 / -1; border-radius:9px;
+    background:var(--cell); border:1px solid transparent;
+  }
+  .cellbg.gap{background:var(--gap-soft); border:1.5px dashed var(--gap)}
+  .cellbg.today{border:2px solid var(--accent)}
+  .dnum{
+    grid-row:1; z-index:1; align-self:start; justify-self:end;
+    font-size:.78rem; color:var(--muted); padding:2px 6px 0 0;
+    font-variant-numeric:tabular-nums;
+  }
+  .dnum.gap{color:var(--gap); font-weight:700}
+  .bar{
+    align-self:center; z-index:1; height:12px;
+    font-size:.62rem; font-weight:600; line-height:12px; color:#fff;
+    padding:0 6px; overflow:hidden; white-space:nowrap;
+  }
+  .bar.i{background:var(--irina); grid-row:2}
+  .bar.m{background:var(--maribel); grid-row:3}
+  .bar.v{background:var(--violetta); grid-row:4}
+  .bar.capS{border-top-left-radius:7px; border-bottom-left-radius:7px}
+  .bar.capE{border-top-right-radius:7px; border-bottom-right-radius:7px}
+
+  footer{color:var(--muted); font-size:.8rem}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>График нянь</h1>
+    <p>Меняйте даты слева внизу — календарь обновляется сразу. Всё сохраняется в этом браузере автоматически.</p>
+  </header>
+
+  <div class="needbar">
+    <label for="needStart">Нужен присмотр:</label>
+    <input type="date" id="needStart">
+    <span class="dash">—</span>
+    <input type="date" id="needEnd">
+    <button class="reset" id="resetBtn">↩︎ Вернуть исходный график</button>
+  </div>
+
+  <div class="months" id="months"></div>
+
+  <div class="controls" id="controls"></div>
+
+  <footer>У каждого своя дорожка: сверху вниз — первая няня, вторая, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет.</footer>
+</div>
+
+<script>
+const KEY = 'nanny-calendar-v1';
+
+const DEFAULTS = {
+  need: { start:'2026-07-17', end:'2026-08-05' },
+  nannies: [
+    { name:'Ирина', cls:'i', ranges:[
+      {start:'2026-07-18', end:'2026-07-21', startPart:'morning', endPart:'evening'},
+      {start:'2026-07-23', end:'2026-07-29', startPart:'morning', endPart:'evening'},
+      {start:'2026-08-01', end:'2026-08-04', startPart:'morning', endPart:'evening'},
+    ]},
+    { name:'Марибэль', cls:'m', ranges:[
+      {start:'2026-07-21', end:'2026-07-24', startPart:'morning', endPart:'evening'},
+      {start:'2026-07-27', end:'2026-07-31', startPart:'morning', endPart:'evening'},
+      {start:'2026-08-04', end:'2026-08-15', startPart:'morning', endPart:'evening'},
+    ]},
+  ],
+  extra: { name:'Виолетта', cls:'v', days: [] }
+};
+
+/* доли дня: где полоска начинается / заканчивается внутри ячейки */
+const START_FRAC = { morning:0,    day:0.4,  evening:0.7 };
+const END_FRAC   = { morning:0.3,  day:0.6,  evening:1   };
+const START_LABEL = { morning:'с утра', day:'с обеда', evening:'с вечера' };
+const END_LABEL   = { morning:'до утра', day:'до обеда', evening:'до вечера' };
+
+let state = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s && s.nannies && s.nannies.length === 2 && s.need){
+        /* миграции старых сохранений */
+        s.nannies.forEach(n => n.ranges.forEach(r => {
+          if(!r.startPart) r.startPart = 'morning';
+          if(!r.endPart) r.endPart = 'evening';
+        }));
+        if(!s.extra) s.extra = JSON.parse(JSON.stringify(DEFAULTS.extra));
+        return s;
+      }
+    }
+  }catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+/* --- даты --- */
+function toDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function iso(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function shiftIso(s, n){ const d = toDate(s); d.setDate(d.getDate()+n); return iso(d); }
+function daysBetween(a,b){ return Math.round((toDate(b) - toDate(a)) / 864e5) + 1; }
+function validRange(r){ return r.start && r.end && r.start <= r.end; }
+function fmtShort(s){ const [y,m,d] = s.split('-'); return d + '.' + m; }
+function fmtDays(x){
+  const r = Math.round(x * 10) / 10;
+  return (Number.isInteger(r) ? r : String(r).replace('.', ',')) + ' дн.';
+}
+const WD_FULL = ['вс','пн','вт','ср','чт','пт','сб'];
+function wdName(s){ return WD_FULL[toDate(s).getDay()]; }
+
+/* покрытие: няни (периоды) + Виолетта (отдельные дни) */
+function coverInfo(){
+  const nannies = state.nannies.map(n => {
+    const days = new Set();
+    const startAt = new Map();
+    const endAt = new Map();
+    n.ranges.forEach(r => {
+      if(!validRange(r)) return;
+      let d = toDate(r.start);
+      const end = toDate(r.end);
+      while(d <= end){ days.add(iso(d)); d.setDate(d.getDate()+1); }
+      startAt.set(r.start, r.startPart || 'morning');
+      endAt.set(r.end, r.endPart || 'evening');
+    });
+    return { days, startAt, endAt };
+  });
+  const extraDays = new Set(state.extra.days.filter(Boolean));
+  return { nannies, extraDays };
+}
+
+function monthsToShow(){
+  const dates = [];
+  if(state.need.start) dates.push(state.need.start);
+  if(state.need.end) dates.push(state.need.end);
+  state.nannies.forEach(n => n.ranges.forEach(r => {
+    if(r.start) dates.push(r.start);
+    if(r.end) dates.push(r.end);
+  }));
+  state.extra.days.forEach(d => { if(d) dates.push(d); });
+  if(!dates.length) dates.push(iso(new Date()));
+  dates.sort();
+  const first = toDate(dates[0]), last = toDate(dates[dates.length-1]);
+  const out = [];
+  let cur = new Date(first.getFullYear(), first.getMonth(), 1);
+  const stop = new Date(last.getFullYear(), last.getMonth(), 1);
+  while(cur <= stop && out.length < 6){
+    out.push(new Date(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return out;
+}
+
+const MONTH_NAMES = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+/* полоски занятости одной дорожки в пределах недели */
+function addBars(wEl, wk, person, days, startAt, endAt, partial){
+  let runStart = -1;
+  for(let col = 0; col <= 7; col++){
+    const k = col < 7 ? wk[col] : null;
+    const covered = k && days.has(k);
+    if(covered && runStart === -1) runStart = col;
+    if(!covered && runStart !== -1){
+      const runEnd = col - 1;
+      const runLen = runEnd - runStart + 1;
+      const startIso = wk[runStart], endIso = wk[runEnd];
+      const capS = !days.has(shiftIso(startIso, -1));
+      const capE = !days.has(shiftIso(endIso, 1));
+
+      const bar = document.createElement('div');
+      bar.className = 'bar ' + person.cls + (capS ? ' capS' : '') + (capE ? ' capE' : '');
+      bar.style.gridColumn = (runStart+1) + ' / ' + (runEnd+2);
+
+      let sFrac = 0, eFrac = 1;
+      if(partial){
+        const sPart = capS ? (startAt.get(startIso) || 'morning') : 'morning';
+        const ePart = capE ? (endAt.get(endIso) || 'evening') : 'evening';
+        sFrac = capS ? START_FRAC[sPart] : 0;
+        eFrac = capE ? END_FRAC[ePart] : 1;
+      }
+      const mL = sFrac / runLen * 100;
+      const mR = (1 - eFrac) / runLen * 100;
+      bar.style.marginLeft = capS ? 'calc(' + mL.toFixed(2) + '% + 2px)' : '0';
+      bar.style.marginRight = capE ? 'calc(' + mR.toFixed(2) + '% + 2px)' : '0';
+
+      if(capS && runLen - sFrac >= 1.5) bar.textContent = person.name;
+
+      let ps = startIso, pe = endIso;
+      while(days.has(shiftIso(ps,-1))) ps = shiftIso(ps,-1);
+      while(days.has(shiftIso(pe,1))) pe = shiftIso(pe,1);
+      if(partial){
+        const psPart = startAt.get(ps) || 'morning';
+        const pePart = endAt.get(pe) || 'evening';
+        bar.title = person.name + ': ' + fmtShort(ps) + ' ' + START_LABEL[psPart] +
+                    ' — ' + fmtShort(pe) + ' ' + END_LABEL[pePart];
+      } else {
+        bar.title = person.name + ': ' + (ps === pe ? fmtShort(ps) : fmtShort(ps) + ' — ' + fmtShort(pe));
+      }
+      wEl.appendChild(bar);
+      runStart = -1;
+    }
+  }
+}
+
+function render(){
+  const info = coverInfo();
+  const needOk = state.need.start && state.need.end && state.need.start <= state.need.end;
+  const todayIso = iso(new Date());
+
+  /* календарь */
+  const monthsEl = document.getElementById('months');
+  monthsEl.innerHTML = '';
+  monthsToShow().forEach(m0 => {
+    const y = m0.getFullYear(), mo = m0.getMonth();
+    const div = document.createElement('div');
+    div.className = 'month';
+    const h = document.createElement('h3');
+    h.textContent = MONTH_NAMES[mo] + ' ' + y;
+    div.appendChild(h);
+
+    const wds = document.createElement('div');
+    wds.className = 'wds';
+    WD.forEach(w => {
+      const el = document.createElement('div');
+      el.className = 'wd'; el.textContent = w;
+      wds.appendChild(el);
+    });
+    div.appendChild(wds);
+
+    const nDays = new Date(y, mo+1, 0).getDate();
+    const firstWd = (new Date(y, mo, 1).getDay() + 6) % 7; // Пн=0
+    const weeks = [];
+    let week = new Array(7).fill(null);
+    for(let d=1; d<=nDays; d++){
+      const col = (firstWd + d - 1) % 7;
+      week[col] = iso(new Date(y, mo, d));
+      if(col === 6 || d === nDays){ weeks.push(week); week = new Array(7).fill(null); }
+    }
+
+    weeks.forEach(wk => {
+      const wEl = document.createElement('div');
+      wEl.className = 'week';
+
+      wk.forEach((k, col) => {
+        if(!k) return;
+        const anyCover = info.nannies.some(x => x.days.has(k)) || info.extraDays.has(k);
+        const inNeed = needOk && k >= state.need.start && k <= state.need.end;
+        const isGap = inNeed && !anyCover;
+
+        const bg = document.createElement('div');
+        bg.className = 'cellbg' + (isGap ? ' gap' : '') + (k === todayIso ? ' today' : '');
+        bg.style.gridColumn = (col+1);
+        if(isGap) bg.title = 'Никого нет!';
+        wEl.appendChild(bg);
+
+        const num = document.createElement('div');
+        num.className = 'dnum' + (isGap ? ' gap' : '');
+        num.style.gridColumn = (col+1);
+        num.textContent = Number(k.slice(8));
+        wEl.appendChild(num);
+      });
+
+      state.nannies.forEach((n, ni) => {
+        const x = info.nannies[ni];
+        addBars(wEl, wk, n, x.days, x.startAt, x.endAt, true);
+      });
+      addBars(wEl, wk, state.extra, info.extraDays, null, null, false);
+
+      div.appendChild(wEl);
+    });
+
+    monthsEl.appendChild(div);
+  });
+
+  /* панели нянь */
+  const controls = document.getElementById('controls');
+  controls.innerHTML = '';
+  state.nannies.forEach((n, ni) => {
+    const p = document.createElement('div');
+    p.className = 'panel';
+    p.appendChild(panelHeader(n));
+
+    const list = document.createElement('div');
+    list.className = 'ranges';
+    n.ranges.forEach((r, ri) => {
+      const row = document.createElement('div');
+      row.className = 'range';
+
+      const s = document.createElement('input');
+      s.type = 'date'; s.value = r.start;
+      s.setAttribute('aria-label','Начало периода');
+      s.addEventListener('change', () => { r.start = s.value; save(); render(); });
+
+      const sTod = todSelect(r.startPart || 'morning', 'start');
+      sTod.addEventListener('change', () => { r.startPart = sTod.value; save(); render(); });
+
+      const dash = document.createElement('span');
+      dash.className = 'dash'; dash.textContent = '—';
+
+      const e = document.createElement('input');
+      e.type = 'date'; e.value = r.end;
+      e.setAttribute('aria-label','Конец периода');
+      e.addEventListener('change', () => { r.end = e.value; save(); render(); });
+
+      const eTod = todSelect(r.endPart || 'evening', 'end');
+      eTod.addEventListener('change', () => { r.endPart = eTod.value; save(); render(); });
+
+      const days = document.createElement('span');
+      days.className = 'days';
+      if(validRange(r)){
+        const eff = daysBetween(r.start, r.end)
+          - START_FRAC[r.startPart || 'morning']
+          - (1 - END_FRAC[r.endPart || 'evening']);
+        days.textContent = fmtDays(eff);
+      }
+
+      const del = delBtn(() => { n.ranges.splice(ri,1); save(); render(); });
+
+      row.append(s, sTod, dash, e, eTod, days, del);
+      list.appendChild(row);
+
+      if(r.start && r.end && r.start > r.end){
+        const w = document.createElement('div');
+        w.className = 'warn';
+        w.textContent = '⚠ Начало позже конца — период не показан';
+        list.appendChild(w);
+      }
+    });
+    p.appendChild(list);
+
+    const add = document.createElement('button');
+    add.className = 'add';
+    add.textContent = '+ Добавить период';
+    add.addEventListener('click', () => {
+      const last = n.ranges[n.ranges.length-1];
+      let start = state.need.start || iso(new Date());
+      if(last && validRange(last)){
+        start = shiftIso(last.end, 2);
+      }
+      n.ranges.push({start, end: shiftIso(start, 2), startPart:'morning', endPart:'evening'});
+      save(); render();
+    });
+    p.appendChild(add);
+
+    controls.appendChild(p);
+  });
+
+  /* панель Виолетты: отдельные дни */
+  {
+    const p = document.createElement('div');
+    p.className = 'panel';
+    p.appendChild(panelHeader(state.extra));
+
+    const list = document.createElement('div');
+    list.className = 'ranges';
+    state.extra.days.forEach((d, di) => {
+      const row = document.createElement('div');
+      row.className = 'range';
+
+      const inp = document.createElement('input');
+      inp.type = 'date'; inp.value = d;
+      inp.setAttribute('aria-label','День');
+      inp.addEventListener('change', () => { state.extra.days[di] = inp.value; save(); render(); });
+
+      const wd = document.createElement('span');
+      wd.className = 'wdname';
+      wd.textContent = d ? wdName(d) : '';
+
+      const del = delBtn(() => { state.extra.days.splice(di,1); save(); render(); });
+
+      row.append(inp, wd, del);
+      list.appendChild(row);
+    });
+    p.appendChild(list);
+
+    const add = document.createElement('button');
+    add.className = 'add';
+    add.textContent = '+ Добавить день';
+    add.addEventListener('click', () => {
+      const sorted = state.extra.days.filter(Boolean).sort();
+      const last = sorted[sorted.length-1];
+      state.extra.days.push(last ? shiftIso(last, 1) : (state.need.start || iso(new Date())));
+      save(); render();
+    });
+    p.appendChild(add);
+
+    controls.appendChild(p);
+  }
+
+  /* нужный период */
+  const ns = document.getElementById('needStart');
+  const ne = document.getElementById('needEnd');
+  if(document.activeElement !== ns) ns.value = state.need.start;
+  if(document.activeElement !== ne) ne.value = state.need.end;
+}
+
+function panelHeader(person){
+  const h = document.createElement('h2');
+  const dot = document.createElement('span');
+  dot.className = 'dot ' + person.cls;
+  h.appendChild(dot);
+  const nameInput = document.createElement('input');
+  nameInput.value = person.name;
+  nameInput.setAttribute('aria-label', 'Имя');
+  nameInput.addEventListener('change', () => { person.name = nameInput.value.trim() || person.name; save(); render(); });
+  h.appendChild(nameInput);
+  return h;
+}
+
+function delBtn(onClick){
+  const del = document.createElement('button');
+  del.className = 'del'; del.textContent = '✕';
+  del.title = 'Удалить';
+  del.setAttribute('aria-label','Удалить');
+  del.addEventListener('click', onClick);
+  return del;
+}
+
+function todSelect(value, kind){
+  const sel = document.createElement('select');
+  const labels = kind === 'start' ? START_LABEL : END_LABEL;
+  ['morning','day','evening'].forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = labels[v];
+    sel.appendChild(o);
+  });
+  sel.value = value;
+  sel.title = kind === 'start' ? 'С какого времени приходит в первый день' : 'До какого времени остаётся в последний день';
+  sel.setAttribute('aria-label', sel.title);
+  return sel;
+}
+
+document.getElementById('needStart').addEventListener('change', e => { state.need.start = e.target.value; save(); render(); });
+document.getElementById('needEnd').addEventListener('change', e => { state.need.end = e.target.value; save(); render(); });
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(confirm('Вернуть исходный график? Ваши изменения будут удалены.')){
+    state = JSON.parse(JSON.stringify(DEFAULTS));
+    save(); render();
+  }
+});
+
+render();
+</script>
