@@ -3,7 +3,7 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8">
-<title>График нянь — календарь</title>
+<title>Рабочий график — календарь</title>
 <style>
   :root{
     --bg:#faf7f2;
@@ -177,7 +177,7 @@
   }
   .bar.i{background:var(--irina); grid-row:2}
   .bar.m{background:var(--maribel); grid-row:3}
-  .bar.v{background:var(--violetta); grid-row:4}
+  .bar.v{background:var(--violetta); grid-row:4; font-size:.56rem; padding:0 4px}
   .bar.capS{border-top-left-radius:7px; border-bottom-left-radius:7px}
   .bar.capE{border-top-right-radius:7px; border-bottom-right-radius:7px}
 
@@ -188,7 +188,7 @@
 
 <div class="wrap">
   <header>
-    <h1>График нянь</h1>
+    <h1>Рабочий график</h1>
     <p>Меняйте даты слева внизу — календарь обновляется сразу. Всё сохраняется в этом браузере автоматически.</p>
   </header>
 
@@ -333,7 +333,22 @@ const MONTH_NAMES = ['январь','февраль','март','апрель','
 const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
 /* полоски занятости одной дорожки в пределах недели */
-function addBars(wEl, wk, person, days, startAt, endAt, partial){
+function addBars(wEl, wk, person, days, startAt, endAt, partial, single){
+  if(single){
+    /* каждый день — отдельная полоска со своей подписью, без склейки */
+    wk.forEach((k, col) => {
+      if(!k || !days.has(k)) return;
+      const bar = document.createElement('div');
+      bar.className = 'bar capS capE ' + person.cls;
+      bar.style.gridColumn = (col+1) + ' / ' + (col+2);
+      bar.style.marginLeft = '2px';
+      bar.style.marginRight = '2px';
+      bar.textContent = person.name;
+      bar.title = person.name + ': ' + fmtShort(k);
+      wEl.appendChild(bar);
+    });
+    return;
+  }
   let runStart = -1;
   for(let col = 0; col <= 7; col++){
     const k = col < 7 ? wk[col] : null;
@@ -443,7 +458,7 @@ function render(){
         const x = info.nannies[ni];
         addBars(wEl, wk, n, x.days, x.startAt, x.endAt, true);
       });
-      addBars(wEl, wk, state.extra, info.extraDays, null, null, false);
+      addBars(wEl, wk, state.extra, info.extraDays, null, null, false, true);
 
       div.appendChild(wEl);
     });
