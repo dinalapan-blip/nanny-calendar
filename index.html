@@ -17,6 +17,8 @@
     --violetta:#8f6db3;     /* сливовый */
     --gap:#c94141;
     --gap-soft:#fbe9e9;
+    --away:#d9a13a;         /* янтарный — меня нет */
+    --away-soft:#fbf1d8;
     --accent:#5a5244;
     --radius:14px;
     --shadow:0 1px 3px rgba(60,50,30,.08), 0 6px 20px rgba(60,50,30,.06);
@@ -27,6 +29,7 @@
       --cell:#332e27;
       --irina:#e8825f; --maribel:#3fa898; --violetta:#a58bc9;
       --gap:#e06060; --gap-soft:#452224;
+      --away:#e3b455; --away-soft:#3f3520;
       --accent:#cfc4b0;
       --shadow:0 1px 3px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.25);
     }
@@ -36,6 +39,7 @@
     --cell:#332e27;
     --irina:#e8825f; --maribel:#3fa898; --violetta:#a58bc9;
     --gap:#e06060; --gap-soft:#452224;
+    --away:#e3b455; --away-soft:#3f3520;
     --accent:#cfc4b0;
     --shadow:0 1px 3px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.25);
   }
@@ -44,6 +48,7 @@
     --cell:#f3efe7;
     --irina:#e0704f; --maribel:#2f8f83; --violetta:#8f6db3;
     --gap:#c94141; --gap-soft:#fbe9e9;
+    --away:#d9a13a; --away-soft:#fbf1d8;
     --accent:#5a5244;
     --shadow:0 1px 3px rgba(60,50,30,.08), 0 6px 20px rgba(60,50,30,.06);
   }
@@ -66,6 +71,7 @@
   .dot.v{background:var(--violetta)}
   .dot.b{background:linear-gradient(180deg,var(--irina) 50%,var(--maribel) 50%)}
   .dot.g{background:var(--gap-soft); border:1.5px dashed var(--gap)}
+  .dot.a{background:var(--away)}
 
   /* ---- панель управления ---- */
   .controls{display:grid; grid-template-columns:1fr 1fr; gap:16px}
@@ -127,6 +133,14 @@
     border:1px solid var(--line); border-radius:8px; padding:6px 8px;
     font-variant-numeric:tabular-nums; color-scheme:light dark;
   }
+  .needbar select{
+    font:inherit; font-size:.82rem; color:var(--muted);
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:6px 4px; cursor:pointer;
+  }
+  .needbar select:hover{color:var(--ink); border-color:var(--accent)}
+  .needbar.away{border-left:4px solid var(--away)}
+  .needbar .hint{color:var(--muted); font-size:.82rem; flex-basis:100%}
   .reset{
     margin-left:auto; font:inherit; font-size:.85rem; cursor:pointer;
     border:1px solid var(--line); background:transparent; color:var(--muted);
@@ -153,7 +167,7 @@
   }
   .week{
     display:grid; grid-template-columns:repeat(7,1fr);
-    grid-template-rows:20px 14px 14px 14px;
+    grid-template-rows:8px 20px 14px 14px 14px;
     column-gap:3px; row-gap:2px;
     margin-bottom:4px;
     padding-bottom:2px;
@@ -162,10 +176,11 @@
     grid-row:1 / -1; border-radius:9px;
     background:var(--cell); border:1px solid transparent;
   }
+  .cellbg.away{background:var(--away-soft)}
   .cellbg.gap{background:var(--gap-soft); border:1.5px dashed var(--gap)}
   .cellbg.today{border:2px solid var(--accent)}
   .dnum{
-    grid-row:1; z-index:1; align-self:start; justify-self:end;
+    grid-row:2; z-index:1; align-self:start; justify-self:end;
     font-size:.78rem; color:var(--muted); padding:2px 6px 0 0;
     font-variant-numeric:tabular-nums;
   }
@@ -175,9 +190,10 @@
     font-size:.62rem; font-weight:600; line-height:12px; color:#fff;
     padding:0 6px; overflow:hidden; white-space:nowrap;
   }
-  .bar.i{background:var(--irina); grid-row:2}
-  .bar.m{background:var(--maribel); grid-row:3}
-  .bar.v{background:var(--violetta); grid-row:4; font-size:.56rem; padding:0 4px}
+  .bar.a{background:var(--away); grid-row:1; align-self:start; margin-top:3px; height:5px; font-size:0; padding:0}
+  .bar.i{background:var(--irina); grid-row:3}
+  .bar.m{background:var(--maribel); grid-row:4}
+  .bar.v{background:var(--violetta); grid-row:5; font-size:.56rem; padding:0 4px}
   .bar.capS{border-top-left-radius:7px; border-bottom-left-radius:7px}
   .bar.capE{border-top-right-radius:7px; border-bottom-right-radius:7px}
 
@@ -200,6 +216,16 @@
     <button class="reset" id="resetBtn">↩︎ Вернуть зафиксированный график</button>
   </div>
 
+  <div class="needbar away">
+    <label for="awayStart">Меня не будет:</label>
+    <input type="date" id="awayStart">
+    <select id="awayStartPart" title="С какого времени меня нет в первый день" aria-label="С какого времени меня нет в первый день"></select>
+    <span class="dash">—</span>
+    <input type="date" id="awayEnd">
+    <select id="awayEndPart" title="До какого времени меня нет в последний день" aria-label="До какого времени меня нет в последний день"></select>
+    <button class="reset" id="awayClear">✕ Убрать</button>
+  </div>
+
   <div class="needbar" id="pubbar" hidden>
     <span id="pubStatus"></span>
     <button class="reset" id="pubBtn" style="margin-left:auto">📤 Зафиксировать для всех</button>
@@ -209,7 +235,7 @@
 
   <div class="controls" id="controls"></div>
 
-  <footer>У каждого своя дорожка: сверху вниз — первая няня, вторая, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет.</footer>
+  <footer>У каждого своя дорожка: сверху вниз — первая няня, вторая, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет. Янтарная полоска над числом и жёлтый фон — дни, когда меня нет.</footer>
 </div>
 
 <script>
@@ -221,21 +247,13 @@ const GH_API = 'https://api.github.com/repos/dinalapan-blip/nanny-calendar/conte
 let published = null;   /* общая (зафиксированная) версия, если удалось загрузить */
 
 const DEFAULTS = {
-  need: { start:'2026-07-17', end:'2026-08-05' },
+  need: { start:'2026-09-11', end:'2026-09-30' },
+  away: { start:'2026-09-22', end:'2026-09-28', startPart:'morning', endPart:'evening' },
   nannies: [
-    { name:'Ирина', cls:'i', ranges:[
-      {start:'2026-07-18', end:'2026-07-21', startPart:'morning', endPart:'evening'},
-      {start:'2026-07-23', end:'2026-07-30', startPart:'evening', endPart:'evening'},
-      {start:'2026-08-02', end:'2026-08-04', startPart:'morning', endPart:'morning'},
-      {start:'2026-08-05', end:'2026-08-09', startPart:'morning', endPart:'evening'},
-    ]},
-    { name:'Марибэль', cls:'m', ranges:[
-      {start:'2026-07-21', end:'2026-07-24', startPart:'evening', endPart:'morning'},
-      {start:'2026-07-27', end:'2026-07-31', startPart:'day', endPart:'morning'},
-      {start:'2026-08-04', end:'2026-08-09', startPart:'morning', endPart:'evening'},
-    ]},
+    { name:'Ирина', cls:'i', ranges:[] },
+    { name:'Марибэль', cls:'m', ranges:[] },
   ],
-  extra: { name:'Виолетта', cls:'v', days: ['2026-07-31', '2026-08-01', '2026-08-03'] }
+  extra: { name:'Виолетта', cls:'v', days: [] }
 };
 
 /* доли дня: где полоска начинается / заканчивается внутри ячейки */
@@ -243,6 +261,7 @@ const START_FRAC = { morning:0,    day:0.4,  evening:0.7 };
 const END_FRAC   = { morning:0.3,  day:0.6,  evening:1   };
 const START_LABEL = { morning:'с утра', day:'с обеда', evening:'с вечера' };
 const END_LABEL   = { morning:'до утра', day:'до обеда', evening:'до вечера' };
+const AWAY_START_LABEL = { morning:'с ночи', day:'с обеда', evening:'с вечера' };
 
 let state = load();
 
@@ -254,6 +273,9 @@ function normalize(s){
     if(!r.endPart) r.endPart = 'evening';
   }));
   if(!s.extra) s.extra = JSON.parse(JSON.stringify(DEFAULTS.extra));
+  if(!s.away) s.away = { start:'', end:'', startPart:'morning', endPart:'evening' };
+  if(!s.away.startPart) s.away.startPart = 'morning';
+  if(!s.away.endPart) s.away.endPart = 'evening';
   return true;
 }
 function load(){
@@ -307,6 +329,16 @@ function coverInfo(){
   return { nannies, extraDays };
 }
 
+function awayOk(){ return state.away && state.away.start && state.away.end && state.away.start <= state.away.end; }
+function awayDays(){
+  const set = new Set();
+  if(!awayOk()) return set;
+  let d = toDate(state.away.start);
+  const end = toDate(state.away.end);
+  while(d <= end){ set.add(iso(d)); d.setDate(d.getDate()+1); }
+  return set;
+}
+
 function monthsToShow(){
   const dates = [];
   if(state.need.start) dates.push(state.need.start);
@@ -316,6 +348,7 @@ function monthsToShow(){
     if(r.end) dates.push(r.end);
   }));
   state.extra.days.forEach(d => { if(d) dates.push(d); });
+  if(awayOk()){ dates.push(state.away.start); dates.push(state.away.end); }
   if(!dates.length) dates.push(iso(new Date()));
   dates.sort();
   const first = toDate(dates[0]), last = toDate(dates[dates.length-1]);
@@ -398,6 +431,7 @@ function addBars(wEl, wk, person, days, startAt, endAt, partial, single){
 
 function render(){
   const info = coverInfo();
+  const away = awayDays();
   const needOk = state.need.start && state.need.end && state.need.start <= state.need.end;
   const todayIso = iso(new Date());
 
@@ -441,10 +475,13 @@ function render(){
         const inNeed = needOk && k >= state.need.start && k <= state.need.end;
         const isGap = inNeed && !anyCover;
 
+        const isAway = away.has(k);
+
         const bg = document.createElement('div');
-        bg.className = 'cellbg' + (isGap ? ' gap' : '') + (k === todayIso ? ' today' : '');
+        bg.className = 'cellbg' + (isAway ? ' away' : '') + (isGap ? ' gap' : '') + (k === todayIso ? ' today' : '');
         bg.style.gridColumn = (col+1);
         if(isGap) bg.title = 'Никого нет!';
+        else if(isAway) bg.title = awayTitle();
         wEl.appendChild(bg);
 
         const num = document.createElement('div');
@@ -459,6 +496,12 @@ function render(){
         addBars(wEl, wk, n, x.days, x.startAt, x.endAt, true);
       });
       addBars(wEl, wk, state.extra, info.extraDays, null, null, false, true);
+      if(away.size){
+        addBars(wEl, wk, { name:'Меня нет', cls:'a' }, away,
+                new Map([[state.away.start, state.away.startPart || 'morning']]),
+                new Map([[state.away.end, state.away.endPart || 'evening']]), true);
+        wEl.querySelectorAll('.bar.a').forEach(b => { b.title = awayTitle(); });
+      }
 
       div.appendChild(wEl);
     });
@@ -586,6 +629,21 @@ function render(){
   const ne = document.getElementById('needEnd');
   if(document.activeElement !== ns) ns.value = state.need.start;
   if(document.activeElement !== ne) ne.value = state.need.end;
+
+  const as = document.getElementById('awayStart');
+  const ae = document.getElementById('awayEnd');
+  const asp = document.getElementById('awayStartPart');
+  const aep = document.getElementById('awayEndPart');
+  if(document.activeElement !== as) as.value = state.away.start || '';
+  if(document.activeElement !== ae) ae.value = state.away.end || '';
+  if(document.activeElement !== asp) asp.value = state.away.startPart || 'morning';
+  if(document.activeElement !== aep) aep.value = state.away.endPart || 'evening';
+}
+
+function awayTitle(){
+  if(!awayOk()) return '';
+  return 'Меня нет: ' + fmtShort(state.away.start) + ' ' + AWAY_START_LABEL[state.away.startPart || 'morning'] +
+         ' — ' + fmtShort(state.away.end) + ' ' + END_LABEL[state.away.endPart || 'evening'];
 }
 
 function panelHeader(person){
@@ -610,14 +668,19 @@ function delBtn(onClick){
   return del;
 }
 
-function todSelect(value, kind){
-  const sel = document.createElement('select');
-  const labels = kind === 'start' ? START_LABEL : END_LABEL;
+function fillTod(sel, kind, labels){
+  labels = labels || (kind === 'start' ? START_LABEL : END_LABEL);
   ['morning','day','evening'].forEach(v => {
     const o = document.createElement('option');
     o.value = v; o.textContent = labels[v];
     sel.appendChild(o);
   });
+  return sel;
+}
+
+function todSelect(value, kind){
+  const sel = document.createElement('select');
+  fillTod(sel, kind);
   sel.value = value;
   sel.title = kind === 'start' ? 'С какого времени приходит в первый день' : 'До какого времени остаётся в последний день';
   sel.setAttribute('aria-label', sel.title);
@@ -626,6 +689,16 @@ function todSelect(value, kind){
 
 document.getElementById('needStart').addEventListener('change', e => { state.need.start = e.target.value; save(); render(); });
 document.getElementById('needEnd').addEventListener('change', e => { state.need.end = e.target.value; save(); render(); });
+fillTod(document.getElementById('awayStartPart'), 'start', AWAY_START_LABEL);
+fillTod(document.getElementById('awayEndPart'), 'end');
+document.getElementById('awayStart').addEventListener('change', e => { state.away.start = e.target.value; save(); render(); });
+document.getElementById('awayEnd').addEventListener('change', e => { state.away.end = e.target.value; save(); render(); });
+document.getElementById('awayStartPart').addEventListener('change', e => { state.away.startPart = e.target.value; save(); render(); });
+document.getElementById('awayEndPart').addEventListener('change', e => { state.away.endPart = e.target.value; save(); render(); });
+document.getElementById('awayClear').addEventListener('click', () => {
+  state.away = { start:'', end:'', startPart:'morning', endPart:'evening' };
+  save(); render();
+});
 document.getElementById('resetBtn').addEventListener('click', () => {
   if(confirm('Вернуть зафиксированный график? Ваши несохранённые правки будут удалены.')){
     state = JSON.parse(JSON.stringify(published || DEFAULTS));
@@ -711,6 +784,5 @@ async function fetchPublished(){
 render();
 fetchPublished();
 </script>
-
 </body>
 </html>
