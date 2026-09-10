@@ -654,9 +654,18 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 });
 
 async function fetchPublished(){
+  /* сначала файл рядом со страницей (GitHub Pages обновляется сразу),
+     потом raw.githubusercontent как запасной путь — он кешируется на несколько минут */
+  const sources = ['data.json?t=' + Date.now(), GH_RAW + '?t=' + Date.now()];
   try{
-    const res = await fetch(GH_RAW + '?t=' + Date.now(), { cache:'no-store' });
-    if(!res.ok) return;
+    let res = null;
+    for(const url of sources){
+      try{
+        const r = await fetch(url, { cache:'no-store' });
+        if(r.ok){ res = r; break; }
+      }catch(e){}
+    }
+    if(!res) return;
     const s = await res.json();
     if(!normalize(s)) return;
     published = s;
