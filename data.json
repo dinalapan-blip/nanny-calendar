@@ -3,7 +3,7 @@
   "away": { "start": "2026-09-22", "end": "2026-09-28", "startPart": "morning", "endPart": "evening" },
   "nannies": [
     { "name": "Ирина", "cls": "i", "ranges": [] },
-    { "name": "Марибэль", "cls": "m", "ranges": [] }
-  ],
-  "extra": { "name": "Виолетта", "cls": "v", "days": [] }
+    { "name": "Марибэль", "cls": "m", "ranges": [] },
+    { "name": "Виолетта", "cls": "v", "ranges": [] }
+  ]
 }
