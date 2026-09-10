@@ -2,8 +2,18 @@
   "need": { "start": "2026-09-11", "end": "2026-09-30" },
   "away": { "start": "2026-09-22", "end": "2026-09-28", "startPart": "morning", "endPart": "evening" },
   "nannies": [
-    { "name": "Ирина", "cls": "i", "ranges": [] },
-    { "name": "Марибэль", "cls": "m", "ranges": [] },
-    { "name": "Виолетта", "cls": "v", "ranges": [] }
+    { "name": "Ирина", "cls": "i", "ranges": [
+      { "start": "2026-09-15", "end": "2026-09-18", "startPart": "morning", "endPart": "evening" },
+      { "start": "2026-09-20", "end": "2026-09-28", "startPart": "evening", "endPart": "morning" },
+      { "start": "2026-09-30", "end": "2026-10-03", "startPart": "evening", "endPart": "evening" }
+    ] },
+    { "name": "Марибэль", "cls": "m", "ranges": [
+      { "start": "2026-09-12", "end": "2026-09-17", "startPart": "morning", "endPart": "evening" },
+      { "start": "2026-09-22", "end": "2026-09-27", "startPart": "evening", "endPart": "evening" }
+    ] },
+    { "name": "Виолетта", "cls": "v", "ranges": [
+      { "start": "2026-09-19", "end": "2026-09-19", "startPart": "morning", "endPart": "evening" },
+      { "start": "2026-09-30", "end": "2026-09-30", "startPart": "morning", "endPart": "evening" }
+    ] }
   ]
 }
