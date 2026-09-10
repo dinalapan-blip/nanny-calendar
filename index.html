@@ -74,7 +74,7 @@
   .dot.a{background:var(--away)}
 
   /* ---- панель управления ---- */
-  .controls{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .controls{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px}
   @media (max-width:900px){ .controls{grid-template-columns:1fr} }
   .panel{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
@@ -193,7 +193,7 @@
   .bar.a{background:var(--away); grid-row:1; align-self:start; margin-top:3px; height:5px; font-size:0; padding:0}
   .bar.i{background:var(--irina); grid-row:3}
   .bar.m{background:var(--maribel); grid-row:4}
-  .bar.v{background:var(--violetta); grid-row:5; font-size:.56rem; padding:0 4px}
+  .bar.v{background:var(--violetta); grid-row:5}
   .bar.capS{border-top-left-radius:7px; border-bottom-left-radius:7px}
   .bar.capE{border-top-right-radius:7px; border-bottom-right-radius:7px}
 
@@ -230,7 +230,7 @@
 
   <div class="controls" id="controls"></div>
 
-  <footer>Правки на этой странице — только примерка: они видны вам и пропадают после перезагрузки. У каждого своя дорожка: сверху вниз — первая няня, вторая, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет. Янтарная полоска над числом и жёлтый фон — дни, когда меня нет.</footer>
+  <footer>Правки на этой странице — только примерка: они видны вам и пропадают после перезагрузки. У каждого своя дорожка: сверху вниз — Ирина, Марибэль, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет. Янтарная полоска над числом и жёлтый фон — дни, когда меня нет.</footer>
 </div>
 
 <script>
@@ -243,8 +243,8 @@ const DEFAULTS = {
   nannies: [
     { name:'Ирина', cls:'i', ranges:[] },
     { name:'Марибэль', cls:'m', ranges:[] },
-  ],
-  extra: { name:'Виолетта', cls:'v', days: [] }
+    { name:'Виолетта', cls:'v', ranges:[] },
+  ]
 };
 
 /* доли дня: где полоска начинается / заканчивается внутри ячейки */
@@ -257,13 +257,25 @@ const AWAY_START_LABEL = { morning:'с ночи', day:'с обеда', evening:'
 let state = JSON.parse(JSON.stringify(DEFAULTS));
 
 function normalize(s){
-  if(!(s && s.nannies && s.nannies.length === 2 && s.need)) return false;
+  if(!(s && s.nannies && s.nannies.length >= 2 && s.need)) return false;
+  /* старый формат: Виолетта отдельными днями -> обычная дорожка с периодами */
+  if(s.extra){
+    const days = (s.extra.days || []).filter(Boolean).sort();
+    const ranges = days.map(d => ({start:d, end:d, startPart:'morning', endPart:'evening'}));
+    if(!s.nannies.some(n => n.cls === 'v')){
+      s.nannies.push({ name: s.extra.name || 'Виолетта', cls: s.extra.cls || 'v', ranges });
+    }
+    delete s.extra;
+  }
+  if(!s.nannies.some(n => n.cls === 'v')){
+    s.nannies.push({ name:'Виолетта', cls:'v', ranges:[] });
+  }
+  s.nannies.forEach(n => { if(!Array.isArray(n.ranges)) n.ranges = []; });
   /* миграции старых сохранений */
   s.nannies.forEach(n => n.ranges.forEach(r => {
     if(!r.startPart) r.startPart = 'morning';
     if(!r.endPart) r.endPart = 'evening';
   }));
-  if(!s.extra) s.extra = JSON.parse(JSON.stringify(DEFAULTS.extra));
   if(!s.away) s.away = { start:'', end:'', startPart:'morning', endPart:'evening' };
   if(!s.away.startPart) s.away.startPart = 'morning';
   if(!s.away.endPart) s.away.endPart = 'evening';
@@ -305,8 +317,7 @@ function coverInfo(){
     });
     return { days, startAt, endAt };
   });
-  const extraDays = new Set(state.extra.days.filter(Boolean));
-  return { nannies, extraDays };
+  return { nannies };
 }
 
 function awayOk(){ return state.away && state.away.start && state.away.end && state.away.start <= state.away.end; }
@@ -327,7 +338,6 @@ function monthsToShow(){
     if(r.start) dates.push(r.start);
     if(r.end) dates.push(r.end);
   }));
-  state.extra.days.forEach(d => { if(d) dates.push(d); });
   if(awayOk()){ dates.push(state.away.start); dates.push(state.away.end); }
   if(!dates.length) dates.push(iso(new Date()));
   dates.sort();
@@ -451,7 +461,7 @@ function render(){
 
       wk.forEach((k, col) => {
         if(!k) return;
-        const anyCover = info.nannies.some(x => x.days.has(k)) || info.extraDays.has(k);
+        const anyCover = info.nannies.some(x => x.days.has(k));
         const inNeed = needOk && k >= state.need.start && k <= state.need.end;
         const isGap = inNeed && !anyCover;
 
@@ -475,7 +485,6 @@ function render(){
         const x = info.nannies[ni];
         addBars(wEl, wk, n, x.days, x.startAt, x.endAt, true);
       });
-      addBars(wEl, wk, state.extra, info.extraDays, null, null, false, true);
       if(away.size){
         addBars(wEl, wk, { name:'Меня нет', cls:'a' }, away,
                 new Map([[state.away.start, state.away.startPart || 'morning']]),
@@ -561,48 +570,6 @@ function render(){
 
     controls.appendChild(p);
   });
-
-  /* панель Виолетты: отдельные дни */
-  {
-    const p = document.createElement('div');
-    p.className = 'panel';
-    p.appendChild(panelHeader(state.extra));
-
-    const list = document.createElement('div');
-    list.className = 'ranges';
-    state.extra.days.forEach((d, di) => {
-      const row = document.createElement('div');
-      row.className = 'range';
-
-      const inp = document.createElement('input');
-      inp.type = 'date'; inp.value = d;
-      inp.setAttribute('aria-label','День');
-      inp.addEventListener('change', () => { state.extra.days[di] = inp.value; save(); render(); });
-
-      const wd = document.createElement('span');
-      wd.className = 'wdname';
-      wd.textContent = d ? wdName(d) : '';
-
-      const del = delBtn(() => { state.extra.days.splice(di,1); save(); render(); });
-
-      row.append(inp, wd, del);
-      list.appendChild(row);
-    });
-    p.appendChild(list);
-
-    const add = document.createElement('button');
-    add.className = 'add';
-    add.textContent = '+ Добавить день';
-    add.addEventListener('click', () => {
-      const sorted = state.extra.days.filter(Boolean).sort();
-      const last = sorted[sorted.length-1];
-      state.extra.days.push(last ? shiftIso(last, 1) : (state.need.start || iso(new Date())));
-      save(); render();
-    });
-    p.appendChild(add);
-
-    controls.appendChild(p);
-  }
 
   /* нужный период */
   const ns = document.getElementById('needStart');
