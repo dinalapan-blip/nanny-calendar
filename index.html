@@ -152,6 +152,20 @@
   #pubStatus{color:var(--muted); font-size:.9rem}
   #pubStatus.pub-dirty{color:var(--irina); font-weight:600}
 
+  /* ---- легенда-переключатель ---- */
+  .legend{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .chip{
+    display:flex; align-items:center; gap:7px; cursor:pointer;
+    font:inherit; font-size:.88rem; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:6px 14px 6px 10px; box-shadow:var(--shadow);
+  }
+  .chip:hover{border-color:var(--accent)}
+  .chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .chip[aria-pressed="true"]{border-color:var(--accent); font-weight:600}
+  .chip[data-dim="1"]{opacity:.45}
+  .legend .note{color:var(--muted); font-size:.82rem; margin-left:4px}
+
   /* ---- календарь ---- */
   .months{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px}
   .month{
@@ -194,6 +208,7 @@
   .bar.i{background:var(--irina); grid-row:3}
   .bar.m{background:var(--maribel); grid-row:4}
   .bar.v{background:var(--violetta); grid-row:5}
+  .bar[data-cls]{cursor:pointer}
   .bar.capS{border-top-left-radius:7px; border-bottom-left-radius:7px}
   .bar.capE{border-top-right-radius:7px; border-bottom-right-radius:7px}
 
@@ -226,6 +241,8 @@
     <button class="reset" id="awayClear">✕ Убрать</button>
   </div>
 
+  <div class="legend" id="legend"></div>
+
   <div class="months" id="months"></div>
 
   <div class="controls" id="controls"></div>
@@ -255,6 +272,7 @@ const END_LABEL   = { morning:'до утра', day:'до обеда', evening:'�
 const AWAY_START_LABEL = { morning:'с ночи', day:'с обеда', evening:'с вечера' };
 
 let state = JSON.parse(JSON.stringify(DEFAULTS));
+let focus = null;   /* cls няни, если показываем кого-то одного */
 
 function normalize(s){
   if(!(s && s.nannies && s.nannies.length >= 2 && s.need)) return false;
@@ -363,6 +381,7 @@ function addBars(wEl, wk, person, days, startAt, endAt, partial, single){
       if(!k || !days.has(k)) return;
       const bar = document.createElement('div');
       bar.className = 'bar capS capE ' + person.cls;
+      if(person.cls !== 'a') bar.dataset.cls = person.cls;
       bar.style.gridColumn = (col+1) + ' / ' + (col+2);
       bar.style.marginLeft = '2px';
       bar.style.marginRight = '2px';
@@ -386,6 +405,7 @@ function addBars(wEl, wk, person, days, startAt, endAt, partial, single){
 
       const bar = document.createElement('div');
       bar.className = 'bar ' + person.cls + (capS ? ' capS' : '') + (capE ? ' capE' : '');
+      if(person.cls !== 'a') bar.dataset.cls = person.cls;
       bar.style.gridColumn = (runStart+1) + ' / ' + (runEnd+2);
 
       let sFrac = 0, eFrac = 1;
@@ -463,7 +483,7 @@ function render(){
         if(!k) return;
         const anyCover = info.nannies.some(x => x.days.has(k));
         const inNeed = needOk && k >= state.need.start && k <= state.need.end;
-        const isGap = inNeed && !anyCover;
+        const isGap = !focus && inNeed && !anyCover;
 
         const isAway = away.has(k);
 
@@ -482,6 +502,7 @@ function render(){
       });
 
       state.nannies.forEach((n, ni) => {
+        if(focus && n.cls !== focus) return;
         const x = info.nannies[ni];
         addBars(wEl, wk, n, x.days, x.startAt, x.endAt, true);
       });
@@ -502,6 +523,7 @@ function render(){
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
   state.nannies.forEach((n, ni) => {
+    if(focus && n.cls !== focus) return;
     const p = document.createElement('div');
     p.className = 'panel';
     p.appendChild(panelHeader(n));
@@ -572,6 +594,34 @@ function render(){
   });
 
   /* нужный период */
+  /* легенда-переключатель */
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  state.nannies.forEach(n => {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.type = 'button';
+    chip.setAttribute('aria-pressed', focus === n.cls ? 'true' : 'false');
+    if(focus && focus !== n.cls) chip.dataset.dim = '1';
+    const dot = document.createElement('span');
+    dot.className = 'dot ' + n.cls;
+    const label = document.createElement('span');
+    label.textContent = n.name;
+    chip.append(dot, label);
+    chip.title = focus === n.cls ? 'Показать всех' : 'Показать только: ' + n.name;
+    chip.addEventListener('click', e => {
+      e.stopPropagation();
+      setFocus(focus === n.cls ? null : n.cls);
+    });
+    legend.appendChild(chip);
+  });
+  if(focus){
+    const note = document.createElement('span');
+    note.className = 'note';
+    note.textContent = 'нажмите в любом месте, чтобы показать всех';
+    legend.appendChild(note);
+  }
+
   const ns = document.getElementById('needStart');
   const ne = document.getElementById('needEnd');
   if(document.activeElement !== ns) ns.value = state.need.start;
@@ -592,6 +642,19 @@ function awayTitle(){
   return 'Меня нет: ' + fmtShort(state.away.start) + ' ' + AWAY_START_LABEL[state.away.startPart || 'morning'] +
          ' — ' + fmtShort(state.away.end) + ' ' + END_LABEL[state.away.endPart || 'evening'];
 }
+
+function setFocus(cls){
+  focus = cls;
+  render();
+}
+
+/* клик по полоске — оставить только этого человека; клик мимо — показать всех */
+document.addEventListener('click', e => {
+  const bar = e.target.closest && e.target.closest('.bar[data-cls]');
+  if(bar){ e.stopPropagation(); setFocus(focus === bar.dataset.cls ? null : bar.dataset.cls); return; }
+  if(focus && !(e.target.closest && e.target.closest('.panel, .needbar'))) setFocus(null);
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && focus) setFocus(null); });
 
 function panelHeader(person){
   const h = document.createElement('h2');
