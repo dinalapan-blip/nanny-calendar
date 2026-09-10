@@ -205,7 +205,7 @@
 <div class="wrap">
   <header>
     <h1>Рабочий график</h1>
-    <p>Меняйте даты слева внизу — календарь обновляется сразу. Всё сохраняется в этом браузере автоматически.</p>
+    <p>Календарь показывает общий график. Даты можно подвигать прямо здесь, чтобы примерить вариант — это видите только вы и только до перезагрузки. Чтобы закрепить график для всех, напишите Клоду.</p>
   </header>
 
   <div class="needbar">
@@ -213,7 +213,7 @@
     <input type="date" id="needStart">
     <span class="dash">—</span>
     <input type="date" id="needEnd">
-    <button class="reset" id="resetBtn">↩︎ Вернуть зафиксированный график</button>
+    <button class="reset" id="resetBtn">↩︎ Вернуть общий график</button>
   </div>
 
   <div class="needbar away">
@@ -226,25 +226,16 @@
     <button class="reset" id="awayClear">✕ Убрать</button>
   </div>
 
-  <div class="needbar" id="pubbar" hidden>
-    <span id="pubStatus"></span>
-    <button class="reset" id="pubBtn" style="margin-left:auto">📤 Зафиксировать для всех</button>
-  </div>
-
   <div class="months" id="months"></div>
 
   <div class="controls" id="controls"></div>
 
-  <footer>У каждого своя дорожка: сверху вниз — первая няня, вторая, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет. Янтарная полоска над числом и жёлтый фон — дни, когда меня нет.</footer>
+  <footer>Правки на этой странице — только примерка: они видны вам и пропадают после перезагрузки. У каждого своя дорожка: сверху вниз — первая няня, вторая, Виолетта. Где полоски идут параллельно — работают несколько человек сразу. Выбор «утро / день / вечер» рядом с датой укорачивает полоску в первый и последний день. Красный пунктир — день в нужном периоде, когда никого нет. Янтарная полоска над числом и жёлтый фон — дни, когда меня нет.</footer>
 </div>
 
 <script>
-const KEY = 'nanny-calendar-v1';
-const KEY_BASE = 'nanny-calendar-published';   /* какая общая версия у нас принята */
-const KEY_TOKEN = 'nanny-gh-token';
 const GH_RAW = 'https://raw.githubusercontent.com/dinalapan-blip/nanny-calendar/main/data.json';
-const GH_API = 'https://api.github.com/repos/dinalapan-blip/nanny-calendar/contents/data.json';
-let published = null;   /* общая (зафиксированная) версия, если удалось загрузить */
+let published = null;   /* общая версия из data.json, если удалось загрузить */
 
 const DEFAULTS = {
   need: { start:'2026-09-11', end:'2026-09-30' },
@@ -263,7 +254,7 @@ const START_LABEL = { morning:'с утра', day:'с обеда', evening:'с в
 const END_LABEL   = { morning:'до утра', day:'до обеда', evening:'до вечера' };
 const AWAY_START_LABEL = { morning:'с ночи', day:'с обеда', evening:'с вечера' };
 
-let state = load();
+let state = JSON.parse(JSON.stringify(DEFAULTS));
 
 function normalize(s){
   if(!(s && s.nannies && s.nannies.length === 2 && s.need)) return false;
@@ -278,20 +269,9 @@ function normalize(s){
   if(!s.away.endPart) s.away.endPart = 'evening';
   return true;
 }
-function load(){
-  try{
-    const raw = localStorage.getItem(KEY);
-    if(raw){
-      const s = JSON.parse(raw);
-      if(normalize(s)) return s;
-    }
-  }catch(e){}
-  return JSON.parse(JSON.stringify(DEFAULTS));
-}
-function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
-  updatePubBar();
-}
+/* правки живут только в памяти вкладки: никакого localStorage,
+   чтобы старый график не «залипал» в браузере */
+function save(){}
 
 /* --- даты --- */
 function toDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
@@ -700,67 +680,11 @@ document.getElementById('awayClear').addEventListener('click', () => {
   save(); render();
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if(confirm('Вернуть зафиксированный график? Ваши несохранённые правки будут удалены.')){
+  if(confirm('Вернуть общий график? Ваши примерки будут отменены.')){
     state = JSON.parse(JSON.stringify(published || DEFAULTS));
-    save(); render();
+    render();
   }
 });
-
-/* --- фиксация изменений для всех (общий файл data.json на GitHub) --- */
-function baseJson(){ return localStorage.getItem(KEY_BASE); }
-function isDirty(){
-  const base = baseJson();
-  return base ? JSON.stringify(state) !== base : true;
-}
-function updatePubBar(){
-  const bar = document.getElementById('pubbar');
-  if(!published){ bar.hidden = true; return; }
-  bar.hidden = false;
-  const st = document.getElementById('pubStatus');
-  const btn = document.getElementById('pubBtn');
-  if(isDirty()){
-    st.textContent = '● Есть изменения, которые пока видите только вы';
-    st.className = 'pub-dirty';
-    btn.disabled = false;
-  } else {
-    st.textContent = '✓ Все изменения зафиксированы — их видят все по ссылке';
-    st.className = '';
-    btn.disabled = true;
-  }
-}
-async function publish(){
-  let token = localStorage.getItem(KEY_TOKEN);
-  if(!token){
-    token = prompt('Чтобы фиксировать график для всех, нужен GitHub-ключ (вводится один раз и сохраняется в этом браузере):');
-    if(!token || !token.trim()) return;
-    token = token.trim();
-    localStorage.setItem(KEY_TOKEN, token);
-  }
-  const btn = document.getElementById('pubBtn');
-  btn.disabled = true; btn.textContent = 'Сохраняю…';
-  try{
-    const head = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' };
-    let sha = null;
-    const cur = await fetch(GH_API, { headers: head });
-    if(cur.status === 401){ localStorage.removeItem(KEY_TOKEN); throw new Error('ключ не подошёл. Нажмите кнопку ещё раз и вставьте ключ заново.'); }
-    if(cur.ok) sha = (await cur.json()).sha;
-    const json = JSON.stringify(state, null, 2);
-    const body = { message: 'Обновление графика нянь', content: btoa(unescape(encodeURIComponent(json))) };
-    if(sha) body.sha = sha;
-    const res = await fetch(GH_API, { method:'PUT', headers: head, body: JSON.stringify(body) });
-    if(res.status === 401 || res.status === 403){ localStorage.removeItem(KEY_TOKEN); throw new Error('ключ не подошёл или нет прав. Нажмите кнопку ещё раз и вставьте ключ заново.'); }
-    if(!res.ok) throw new Error('GitHub ответил ошибкой ' + res.status);
-    published = JSON.parse(JSON.stringify(state));
-    localStorage.setItem(KEY_BASE, JSON.stringify(state));
-    alert('Готово! Теперь этот график увидят все, кто откроет ссылку.');
-  }catch(err){
-    alert('Не получилось сохранить: ' + err.message);
-  }finally{
-    btn.textContent = '📤 Зафиксировать для всех';
-    updatePubBar();
-  }
-}
-document.getElementById('pubBtn').addEventListener('click', publish);
 
 async function fetchPublished(){
   try{
@@ -769,17 +693,13 @@ async function fetchPublished(){
     const s = await res.json();
     if(!normalize(s)) return;
     published = s;
-    const base = baseJson();
-    /* если своих несохранённых правок нет — принимаем общую версию */
-    if(!base || base === JSON.stringify(state) || JSON.stringify(state) === JSON.stringify(published)){
-      state = JSON.parse(JSON.stringify(published));
-      localStorage.setItem(KEY, JSON.stringify(state));
-      localStorage.setItem(KEY_BASE, JSON.stringify(published));
-      render();
-    }
-    updatePubBar();
-  }catch(e){ /* нет сети или страница открыта как артефакт — работаем локально */ }
+    state = JSON.parse(JSON.stringify(published));
+    render();
+  }catch(e){ /* нет сети — показываем то, что вшито в страницу */ }
 }
+
+/* на всякий случай подчищаем то, что осталось от прежней версии страницы */
+try{ ['nanny-calendar-v1','nanny-calendar-published','nanny-gh-token'].forEach(k => localStorage.removeItem(k)); }catch(e){}
 
 render();
 fetchPublished();
